@@ -1,48 +1,9 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-*.egg-info/
+.pytest_cache/
+.venv/
+.env
 dist/
 build/
-
-# Security Analysis Results (user-generated)
-*.json
-*_results.txt
-*_report.txt
-*_audit.json
-daily_check.json
-weekly_audit.json
-security_check.json
-
-# macOS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Temporary files
-*.tmp
-*.temp
-*.log
-
-# User configuration
-config.local.py
-.env 
+*.egg-info/
