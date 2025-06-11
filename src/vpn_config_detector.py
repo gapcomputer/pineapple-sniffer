@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import platform
 from typing import Dict, Optional, List, Any
 
 class VPNConfigurationError(Exception):
@@ -37,57 +38,97 @@ class VPNConfigDetector:
             VPNConfigurationError: If detection fails
         """
         try:
-            # Simulating VPN detection command - replace with actual system command
-            result = subprocess.run(
-                ['ifconfig'],  # Example command, adjust based on OS
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            # Detect OS and use appropriate method
+            os_name = platform.system().lower()
             
-            if result.returncode != 0:
-                raise VPNConfigurationError(f"VPN detection failed: {result.stderr}")
-            
-            vpn_connections = self._parse_vpn_interfaces(result.stdout)
-            
-            if not vpn_connections:
-                self.logger.info("No VPN connections detected")
+            if os_name == 'darwin':  # macOS
+                return self._detect_vpn_macos()
+            elif os_name == 'linux':
+                return self._detect_vpn_linux()
             else:
-                self.logger.info(f"Detected {len(vpn_connections)} VPN connection(s)")
-            
-            return vpn_connections
-        
-        except subprocess.TimeoutExpired:
-            self.logger.error("VPN detection timed out")
-            raise VPNConfigurationError("VPN detection process timed out")
+                self.logger.warning(f"Unsupported OS: {os_name}")
+                return []
         
         except Exception as e:
             self.logger.error(f"Unexpected error during VPN detection: {e}")
             raise VPNConfigurationError(f"Unexpected VPN detection error: {e}")
     
-    def _parse_vpn_interfaces(self, output: str) -> List[Dict[str, Any]]:
+    def _detect_vpn_macos(self) -> List[Dict[str, Any]]:
         """
-        Parse command output to extract VPN interface details.
-        
-        Args:
-            output (str): Command output to parse
+        Detect VPN connections on macOS.
         
         Returns:
-            List of VPN interface details
+            List of VPN connection details
         """
-        # Implement actual parsing logic based on system command output
-        # This is a placeholder implementation
-        vpn_connections = []
+        try:
+            result = subprocess.run(
+                ['scutil', '--nc', 'list'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            # Basic parsing of scutil output
+            vpn_connections = []
+            for line in result.stdout.split('\n'):
+                if 'VPN' in line or 'Connected' in line:
+                    vpn_connections.append({
+                        'interface': 'utun',
+                        'status': 'active',
+                        'protocol': 'Unknown'
+                    })
+            
+            if not vpn_connections:
+                self.logger.info("No VPN connections detected on macOS")
+            
+            return vpn_connections
         
-        # Example parsing logic
-        if 'tun' in output or 'vpn' in output:
-            vpn_connections.append({
-                'interface': 'tun0',
-                'status': 'active',
-                'protocol': 'OpenVPN'
-            })
+        except subprocess.TimeoutExpired:
+            self.logger.error("macOS VPN detection timed out")
+            return []
+        except Exception as e:
+            self.logger.error(f"macOS VPN detection error: {e}")
+            return []
+    
+    def _detect_vpn_linux(self) -> List[Dict[str, Any]]:
+        """
+        Detect VPN connections on Linux.
         
-        return vpn_connections
+        Returns:
+            List of VPN connection details
+        """
+        try:
+            # Check for typical VPN interface names
+            vpn_interfaces = ['tun', 'tap', 'ppp']
+            vpn_connections = []
+            
+            result = subprocess.run(
+                ['ip', 'link', 'show'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            for line in result.stdout.split('\n'):
+                for interface in vpn_interfaces:
+                    if interface in line.lower():
+                        vpn_connections.append({
+                            'interface': line.split(':')[1].strip(),
+                            'status': 'active',
+                            'protocol': 'OpenVPN' if 'tun' in interface else 'Unknown'
+                        })
+            
+            if not vpn_connections:
+                self.logger.info("No VPN connections detected on Linux")
+            
+            return vpn_connections
+        
+        except subprocess.TimeoutExpired:
+            self.logger.error("Linux VPN detection timed out")
+            return []
+        except Exception as e:
+            self.logger.error(f"Linux VPN detection error: {e}")
+            return []
     
     def validate_vpn_configuration(self, config: Dict[str, Any]) -> bool:
         """
@@ -105,7 +146,7 @@ class VPNConfigDetector:
                 return False
             
             # Add specific validation checks
-            if config.get('protocol') not in ['OpenVPN', 'WireGuard', 'IPSec']:
+            if config.get('protocol') not in ['OpenVPN', 'WireGuard', 'IPSec', 'Unknown']:
                 self.logger.warning(f"Unsupported VPN protocol: {config.get('protocol')}")
                 return False
             
