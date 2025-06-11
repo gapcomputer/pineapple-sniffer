@@ -2,6 +2,7 @@ import subprocess
 import re
 from typing import Dict, Optional, List
 import logging
+import platform
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -61,6 +62,7 @@ class VPNConfigParser:
             
             # Detailed configuration parsing
             config = {
+                "platform": "darwin",
                 "vpn_services": vpn_services,
                 "active_vpn": None,
                 "vpn_type": None
@@ -84,7 +86,12 @@ class VPNConfigParser:
         
         except Exception as e:
             logger.error(f"macOS VPN config parsing failed: {e}")
-            return {"vpn_services": [], "active_vpn": None, "vpn_type": None}
+            return {
+                "platform": "darwin", 
+                "vpn_services": [], 
+                "active_vpn": None, 
+                "vpn_type": None
+            }
 
     @classmethod
     def parse_linux_vpn_config(cls) -> Dict[str, Optional[str]]:
@@ -102,6 +109,7 @@ class VPNConfigParser:
             vpn_interfaces = re.findall(r'(tun\d+)', ip_output)
             
             config = {
+                "platform": "linux",
                 "vpn_interfaces": vpn_interfaces,
                 "active_vpn": None,
                 "vpn_type": None
@@ -122,7 +130,12 @@ class VPNConfigParser:
         
         except Exception as e:
             logger.error(f"Linux VPN config parsing failed: {e}")
-            return {"vpn_interfaces": [], "active_vpn": None, "vpn_type": None}
+            return {
+                "platform": "linux", 
+                "vpn_interfaces": [], 
+                "active_vpn": None, 
+                "vpn_type": None
+            }
 
     @classmethod
     def detect_vpn_config(cls) -> Dict[str, Optional[str]]:
@@ -132,8 +145,6 @@ class VPNConfigParser:
         Returns:
             Dict[str, Optional[str]]: Parsed VPN configuration
         """
-        import platform
-        
         os_name = platform.system().lower()
         
         if os_name == "darwin":
@@ -142,4 +153,8 @@ class VPNConfigParser:
             return cls.parse_linux_vpn_config()
         else:
             logger.warning(f"Unsupported platform: {os_name}")
-            return {"platform": os_name, "active_vpn": None, "vpn_type": None}
+            return {
+                "platform": os_name, 
+                "active_vpn": None, 
+                "vpn_type": None
+            }
