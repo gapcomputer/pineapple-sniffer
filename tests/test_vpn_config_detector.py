@@ -31,3 +31,13 @@ def test_validate_vpn_configuration():
     }
     assert detector.validate_vpn_configuration(invalid_config) is False
     assert detector.validate_vpn_configuration({}) is False
+
+def test_error_handling():
+    """Test error handling in VPN configuration detection."""
+    detector = VPNConfigDetector(log_level=logging.DEBUG)
+    
+    # Test with an edge case configuration
+    assert detector.validate_vpn_configuration({
+        'protocol': 'Unknown',
+        'interface': 'testing'
+    }) is True
